@@ -1,14 +1,23 @@
 "use client";
 
 import React, { useState, useRef, useCallback } from "react";
-import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { useWallet, type InputTransactionData } from "@aptos-labs/wallet-adapter-react";
+import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
+import { v4 as uuidv4 } from "uuid";
+import { 
+  expectedTotalChunksets, 
+  ShelbyBlobClient, 
+  ShelbyClient, 
+  createDefaultErasureCodingProvider, 
+  generateCommitments 
+} from "@shelby-protocol/sdk/browser";
 
 interface UploadZoneProps {
   onUploadComplete?: (mediaId: string) => void;
 }
 
 export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
-  const { account, connected } = useWallet();
+  const { account, connected, signAndSubmitTransaction } = useWallet();
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
@@ -76,41 +85,91 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
       return;
     }
 
+    if (!connected || !account) {
+      setError("Please connect your wallet to upload to Shelby.");
+      return;
+    }
+
     setUploading(true);
     setError(null);
-    setProgress(10);
+    setProgress(5);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("title", title.trim());
-      if (connected && account?.address) {
-        formData.append("walletAddress", account.address.toString());
-      }
+      // 1. File Encoding
+      setProgress(10);
+      const data = new Uint8Array(await file.arrayBuffer());
+      const provider = await createDefaultErasureCodingProvider();
+      const commitments = await generateCommitments(provider, data);
 
-      // Simulate progress stages
       setProgress(30);
 
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
+      const id = uuidv4();
+      const extension = file.name.split(".").pop() || "bin";
+      const blobName = `media/${id}.${extension}`;
+
+      // 2. On-Chain Registration
+      setProgress(40);
+      const payload = ShelbyBlobClient.createRegisterBlobPayload({
+        account: account.address,
+        blobName,
+        blobMerkleRoot: commitments.blob_merkle_root,
+        numChunksets: expectedTotalChunksets(commitments.raw_data_size),
+        expirationMicros: (1000 * 60 * 60 * 24 * 30 + Date.now()) * 1000,
+        blobSize: commitments.raw_data_size,
+        encoding: 1, // Erasure Coded
       });
 
+      const transaction: InputTransactionData = { data: payload };
+      const transactionSubmitted = await signAndSubmitTransaction(transaction);
+      
+      setProgress(60);
+
+      const aptosClient = new Aptos(new AptosConfig({ network: Network.TESTNET }));
+      await aptosClient.waitForTransaction({ transactionHash: transactionSubmitted.hash });
+
+      // 3. RPC Upload
       setProgress(80);
+      const shelbyClient = new ShelbyClient({
+        network: Network.TESTNET,
+        apiKey: process.env.NEXT_PUBLIC_SHELBY_API_KEY || "", 
+      });
 
-      const data = await response.json();
+      await shelbyClient.rpc.putBlob({
+        account: account.address,
+        blobName: blobName,
+        blobData: data,
+      });
 
-      if (!response.ok) {
-        throw new Error(data.error || "Upload failed.");
+      setProgress(95);
+
+      // 4. Save metadata
+      const mType = file.type.startsWith("video/") ? "video" : "audio";
+      const res = await fetch("/api/media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          title: title.trim(),
+          type: mType,
+          blobName,
+          accountAddress: account.address.toString(),
+          uploaderWallet: account.address.toString(),
+          fileSize: file.size,
+          mimeType: file.type
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error("Upload succeeded, but metadata saving failed.");
       }
 
       setProgress(100);
-      setSuccessId(data.media.id);
+      setSuccessId(id);
       setFile(null);
       setTitle("");
 
       if (onUploadComplete) {
-        onUploadComplete(data.media.id);
+        onUploadComplete(id);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
