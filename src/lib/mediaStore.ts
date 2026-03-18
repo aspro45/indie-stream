@@ -2,7 +2,7 @@ import { MediaItem } from "./types";
 
 const KV_KEY = "indie_stream_media";
 
-// In-memory fallback for local dev (when Vercel KV env vars aren't set)
+// In-memory fallback for local dev or when KV is not configured
 let localStore: MediaItem[] = [];
 
 function isKVAvailable(): boolean {
@@ -13,12 +13,14 @@ function isKVAvailable(): boolean {
  * Read all media items from the store.
  */
 export async function getAllMedia(): Promise<MediaItem[]> {
-  if (!isKVAvailable()) {
+  if (!isKVAvailable()) return localStore;
+  try {
+    const { kv } = await import("@vercel/kv");
+    const items = await kv.get<MediaItem[]>(KV_KEY);
+    return items ?? [];
+  } catch {
     return localStore;
   }
-  const { kv } = await import("@vercel/kv");
-  const items = await kv.get<MediaItem[]>(KV_KEY);
-  return items ?? [];
 }
 
 /**
@@ -37,7 +39,11 @@ export async function addMedia(item: MediaItem): Promise<void> {
     localStore = [item, ...localStore];
     return;
   }
-  const { kv } = await import("@vercel/kv");
-  const items = await getAllMedia();
-  await kv.set(KV_KEY, [item, ...items]);
+  try {
+    const { kv } = await import("@vercel/kv");
+    const items = await getAllMedia();
+    await kv.set(KV_KEY, [item, ...items]);
+  } catch {
+    localStore = [item, ...localStore];
+  }
 }
