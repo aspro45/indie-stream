@@ -45,11 +45,10 @@ Open [http://localhost:3000](http://localhost:3000).
 ### Environment Variables
 
 ```env
-SHELBY_API_KEY=your_shelby_api_key
-APTOS_PRIVATE_KEY=your_ed25519_private_key
 NEXT_PUBLIC_SHELBY_API_KEY=your_shelby_api_key
-NEXT_PUBLIC_ACCOUNT_ADDRESS=your_aptos_account_address
 ```
+
+> That's it! No private key or account address needed — uploads are signed directly by the user's Aptos wallet in the browser.
 
 ## Deployment (Vercel)
 
