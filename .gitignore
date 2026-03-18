@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local data store (JSON media metadata - not for version control)
+/data/
+
+# local env override
+.env.local

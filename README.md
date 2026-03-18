@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# IndieStream
+
+A **decentralized Indie Media Streaming App** built on [Next.js](https://nextjs.org) and [Shelby Protocol](https://shelby.xyz) — decentralized hot-storage on the Aptos blockchain.
+
+## Features
+
+- 🎬 **Upload Dashboard** — Drag & drop audio/video files, uploaded to Shelby's decentralized network
+- 🔍 **Content Feed** — Browse all media with gradient thumbnails and metadata
+- ▶️ **Media Player** — Stream directly from Shelby's fast retrieval URLs
+- 👤 **Wallet Accounts** — Connect your Aptos wallet (Petra, etc.) to track your uploads
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 15 (App Router, TypeScript) |
+| Storage | [Shelby Protocol](https://shelby.xyz) — decentralized hot-storage on Aptos |
+| Blockchain | Aptos Testnet |
+| Wallet | `@aptos-labs/wallet-adapter-react` |
+| Styling | Vanilla CSS with dark theme |
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+1. **Shelby API Key** — Get one at [docs.shelby.xyz](https://docs.shelby.xyz/sdks/typescript/acquire-api-keys)
+2. **Aptos Account** — Fund with APT (testnet faucet) + ShelbyUSD (Shelby Discord)
+
+### Setup
 
 ```bash
+# Install dependencies
+npm install
+
+# Configure environment variables
+cp .env.example .env.local
+# Fill in your keys in .env.local
+
+# Run the dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+SHELBY_API_KEY=your_shelby_api_key
+APTOS_PRIVATE_KEY=your_ed25519_private_key
+NEXT_PUBLIC_SHELBY_API_KEY=your_shelby_api_key
+NEXT_PUBLIC_ACCOUNT_ADDRESS=your_aptos_account_address
+```
 
-## Learn More
+## Deployment (Vercel)
 
-To learn more about Next.js, take a look at the following resources:
+1. Push this repo to GitHub
+2. Import the repo in [Vercel](https://vercel.com)
+3. Add environment variables in **Settings → Environment Variables**
+4. Deploy!
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+> **Note**: The JSON metadata store (`data/media.json`) is a local MVP approach. For production, swap in a persistent database.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Architecture
 
-## Deploy on Vercel
+```
+Upload (browser) → API Route (server) → Shelby SDK → Shelby Network (Aptos)
+                                      → data/media.json (metadata)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Stream (browser) ← HTML5 <video/audio> ← https://api.testnet.shelby.xyz/shelby/v1/blobs/{addr}/{name}
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Links
+
+- [Shelby Protocol Docs](https://docs.shelby.xyz)
+- [Aptos Testnet Faucet](https://aptos.dev/network/faucet)
+- [Shelby Discord](https://discord.gg/shelbyprotocol)
