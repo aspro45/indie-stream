@@ -4,8 +4,8 @@ import { getAllMedia } from "@/lib/mediaStore";
 
 export const dynamic = "force-dynamic";
 
-export default function HomePage() {
-  const media = getAllMedia().sort(
+export default async function HomePage() {
+  const media = (await getAllMedia()).sort(
     (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
   );
 

@@ -12,7 +12,7 @@ interface WatchPageProps {
 
 export default async function WatchPage({ params }: WatchPageProps) {
   const { id } = await params;
-  const media = getMediaById(id);
+  const media = await getMediaById(id);
 
   if (!media) {
     notFound();

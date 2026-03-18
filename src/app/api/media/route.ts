@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const media = getAllMedia();
+    const media = await getAllMedia();
     return NextResponse.json({ media });
   } catch (error) {
     console.error("Failed to get media:", error);
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       mimeType,
     };
 
-    addMedia(mediaItem);
+    await addMedia(mediaItem);
 
     return NextResponse.json({
       success: true,

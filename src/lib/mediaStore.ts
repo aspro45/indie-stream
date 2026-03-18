@@ -1,44 +1,43 @@
-import fs from "fs";
-import path from "path";
 import { MediaItem } from "./types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const STORE_PATH = path.join(DATA_DIR, "media.json");
+const KV_KEY = "indie_stream_media";
 
-/**
- * Ensure the data directory and JSON file exist.
- */
-function ensureStore(): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(STORE_PATH)) {
-    fs.writeFileSync(STORE_PATH, JSON.stringify([], null, 2), "utf-8");
-  }
+// In-memory fallback for local dev (when Vercel KV env vars aren't set)
+let localStore: MediaItem[] = [];
+
+function isKVAvailable(): boolean {
+  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 }
 
 /**
- * Read all media items from the JSON store.
+ * Read all media items from the store.
  */
-export function getAllMedia(): MediaItem[] {
-  ensureStore();
-  const raw = fs.readFileSync(STORE_PATH, "utf-8");
-  return JSON.parse(raw) as MediaItem[];
+export async function getAllMedia(): Promise<MediaItem[]> {
+  if (!isKVAvailable()) {
+    return localStore;
+  }
+  const { kv } = await import("@vercel/kv");
+  const items = await kv.get<MediaItem[]>(KV_KEY);
+  return items ?? [];
 }
 
 /**
  * Get a single media item by ID.
  */
-export function getMediaById(id: string): MediaItem | undefined {
-  const items = getAllMedia();
+export async function getMediaById(id: string): Promise<MediaItem | undefined> {
+  const items = await getAllMedia();
   return items.find((item) => item.id === id);
 }
 
 /**
  * Add a new media item to the store.
  */
-export function addMedia(item: MediaItem): void {
-  const items = getAllMedia();
-  items.push(item);
-  fs.writeFileSync(STORE_PATH, JSON.stringify(items, null, 2), "utf-8");
+export async function addMedia(item: MediaItem): Promise<void> {
+  if (!isKVAvailable()) {
+    localStore = [item, ...localStore];
+    return;
+  }
+  const { kv } = await import("@vercel/kv");
+  const items = await getAllMedia();
+  await kv.set(KV_KEY, [item, ...items]);
 }
